@@ -18,7 +18,7 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final MapController _map = MapController();
-  static const LatLng _start = LatLng(37.7749, -122.4194);
+  static const LatLng _start = LatLng(39.7014, -75.1063);
   double _zoom = 13;
 
   final _photoPoints = <LatLng>[];
