@@ -1,18 +1,43 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
-import 'pages/landing_page.dart';
+import 'pages/home_shell.dart';
 
 void main() => runApp(const MyApp());
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _mode = ThemeMode.light;
+
+  void _toggleTheme() {
+    setState(() {
+      _mode = (_mode == ThemeMode.light) ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Asset Management',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
-      home: const LandingPage(),
+      themeMode: _mode,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
+        brightness: Brightness.dark,
+      ),
+      home: HomeShell(
+        isDark: _mode == ThemeMode.dark,
+        onToggleTheme: _toggleTheme,
+      ),
     );
-    }
+  }
 }

@@ -26,7 +26,6 @@ class _LandingPageState extends State<LandingPage> {
   final _upload = UploadService();
 
   // ----- image state (web vs mobile) -----
-  // Web: we hold bytes + the picked name for extension detection.
   Uint8List? _photoBytesWeb;
   String? _webPickedName;
 
@@ -40,6 +39,7 @@ class _LandingPageState extends State<LandingPage> {
 
   // signage form controllers/fields
   final _formKeySignage = GlobalKey<FormState>();
+  final _createdBy = TextEditingController();
   final _street = TextEditingController();
   final _milepost = TextEditingController(text: '1');
   final _lat = TextEditingController();
@@ -53,6 +53,7 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   void dispose() {
+    _createdBy.dispose();
     _street.dispose();
     _milepost.dispose();
     _lat.dispose();
@@ -77,54 +78,60 @@ class _LandingPageState extends State<LandingPage> {
     return '${latStr}_${lonStr}$ext';
   }
 
-  // ----- image capture -----
+  // ----- image capture (also fetches GPS automatically) -----
   Future<void> _capture() async {
-    final img = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 95,
-      preferredCameraDevice: CameraDevice.rear,
-    );
-    if (img == null) return;
-
-    if (kIsWeb) {
-      // On web we must render bytes; File I/O is not supported.
-      final bytes = await img.readAsBytes();
-      setState(() {
-        _photoBytesWeb = bytes;
-        _webPickedName = img.name; // keep original name to detect extension
-        _photoFile = null;
-      });
-    } else {
-      setState(() {
-        _photoFile = img;
-        _photoBytesWeb = null;
-        _webPickedName = null;
-      });
-    }
-  }
-
-  // ----- GPS fill -----
-  Future<void> _useGps() async {
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        throw Exception('Location services are disabled.');
+      final img = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 95,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (img == null) return;
+
+      if (kIsWeb) {
+        final bytes = await img.readAsBytes();
+        setState(() {
+          _photoBytesWeb = bytes;
+          _webPickedName = img.name;
+          _photoFile = null;
+        });
+      } else {
+        setState(() {
+          _photoFile = img;
+          _photoBytesWeb = null;
+          _webPickedName = null;
+        });
       }
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
+
+      // Try to grab location right after capturing
+      Position? pos;
+      try {
+        if (await Geolocator.isLocationServiceEnabled()) {
+          var perm = await Geolocator.checkPermission();
+          if (perm == LocationPermission.denied) {
+            perm = await Geolocator.requestPermission();
+          }
+          if (perm == LocationPermission.always ||
+              perm == LocationPermission.whileInUse) {
+            pos = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.best,
+            );
+          }
+        }
+      } catch (_) {
+        // ignore; we'll show a message below if null
       }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        throw Exception('Location permission not granted.');
+
+      if (pos != null) {
+        setState(() {
+          _lat.text = pos!.latitude.toStringAsFixed(6);
+          _lon.text = pos!.longitude.toStringAsFixed(6);
+        });
+      } else {
+        _snack('Couldn’t get location automatically. You can enter it manually.');
       }
-      final pos =
-          await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
-      setState(() {
-        _lat.text = pos.latitude.toStringAsFixed(6);
-        _lon.text = pos.longitude.toStringAsFixed(6);
-      });
     } catch (e) {
-      _snack('GPS error: $e');
+      _snack('Camera error: $e');
     }
   }
 
@@ -161,6 +168,7 @@ class _LandingPageState extends State<LandingPage> {
 
       final payload = {
         "image": imgBase64,
+        "created_by": _createdBy.text.trim(), // <-- added here
         "street": _street.text.trim(),
         "milepost": double.tryParse(_milepost.text.trim()) ?? 0,
         "lat": latVal,
@@ -206,7 +214,6 @@ class _LandingPageState extends State<LandingPage> {
           if (_photoFile == null) {
             return _emptyImageBox();
           }
-          // Only use Image.file on non-web
           return ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.file(File(_photoFile!.path), height: 180, fit: BoxFit.cover),
@@ -216,7 +223,7 @@ class _LandingPageState extends State<LandingPage> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Asset Intake')),
+      // appBar: AppBar(title: const Text('Asset Intake')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -226,20 +233,10 @@ class _LandingPageState extends State<LandingPage> {
               children: [
                 Expanded(child: imageWidget),
                 const SizedBox(width: 12),
-                Column(
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _busy ? null : _capture,
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Capture'),
-                    ),
-                    const SizedBox(height: 8),
-                    FilledButton.tonalIcon(
-                      onPressed: _busy ? null : _useGps,
-                      icon: const Icon(Icons.my_location),
-                      label: const Text('Use GPS'),
-                    ),
-                  ],
+                FilledButton.icon(
+                  onPressed: _busy ? null : _capture,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Capture'),
                 ),
               ],
             ),
@@ -271,20 +268,6 @@ class _LandingPageState extends State<LandingPage> {
             else
               _placeholderCard('Drainage form – TBD'),
 
-            const SizedBox(height: 24),
-            // Visualize button -> Map page
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const MapPage()),
-                  );
-                },
-                icon: const Icon(Icons.map),
-                label: const Text('Visualize (Map)'),
-              ),
-            ),
           ],
         ),
       ),
@@ -314,6 +297,16 @@ class _LandingPageState extends State<LandingPage> {
       key: _formKeySignage,
       child: Column(
         children: [
+          // ---- Created By (optional) ----
+          TextFormField(
+            controller: _createdBy,
+            decoration: const InputDecoration(
+              labelText: 'Created By (optional)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           Row(
             children: [
               Expanded(
@@ -384,7 +377,7 @@ class _LandingPageState extends State<LandingPage> {
                 child: DropdownButtonFormField<String>(
                   value: _locationSide,
                   decoration: const InputDecoration(
-                    labelText: 'Location Side',
+                    labelText: 'Side Of Road',
                     border: OutlineInputBorder(),
                   ),
                   items: const [
@@ -407,7 +400,7 @@ class _LandingPageState extends State<LandingPage> {
                   ),
                   validator: (v) =>
                       (int.tryParse((v ?? '').trim()) == null)
-                          ? 'Enter an integer'
+                          ? null
                           : null,
                 ),
               ),
@@ -434,13 +427,17 @@ class _LandingPageState extends State<LandingPage> {
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'Height (m)',
+                    labelText: 'Height (inches)',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) =>
-                      (double.tryParse((v ?? '').trim()) == null)
-                          ? 'Enter a number'
-                          : null,
+                  // Optional: allow blank or numeric
+                  validator: (v) {
+                    final s = (v ?? '').trim();
+                    if (s.isEmpty) return null;
+                    return double.tryParse(s) == null
+                        ? 'Enter a valid number'
+                        : null;
+                  },
                 ),
               ),
             ],
