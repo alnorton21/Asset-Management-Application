@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pages/home_shell.dart';
+import 'pages/auth_pages.dart';
 
 void main() => runApp(const MyApp());
 
@@ -34,7 +35,7 @@ class _MyAppState extends State<MyApp> {
         colorSchemeSeed: Colors.blue,
         brightness: Brightness.dark,
       ),
-      home: HomeShell(
+       home: LoginPage(
         isDark: _mode == ThemeMode.dark,
         onToggleTheme: _toggleTheme,
       ),
