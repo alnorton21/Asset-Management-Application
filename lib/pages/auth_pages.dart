@@ -171,18 +171,18 @@ class _LoginPageState extends State<LoginPage> {
     if (!_form.currentState!.validate()) return;
     setState(() => _busy = true);
 
-    final id = _username.text.trim();
-    // If the user types an email, send it as email; otherwise as username.
-    final r = id.contains('@')
-        ? await AuthService.login(email: id, password: _password.text)
-        : await AuthService.login(username: id, password: _password.text);
+    final email = _username.text.trim(); // this is now the email field
+    final res = await AuthService.login(
+      email: email,
+      password: _password.text,
+    );
 
     if (!mounted) return;
     setState(() => _busy = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r.msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res.msg)));
 
-    if (r.ok) {
+    if (res.ok) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => HomeShell(
@@ -193,6 +193,7 @@ class _LoginPageState extends State<LoginPage> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -215,11 +216,15 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 18),
             TextFormField(
-              controller: _username,
-              decoration: _decor('Username or Email', Icons.person),
+              controller: _username, // reuse; or rename to _email
+              decoration: _decor('Email', Icons.email),
+              keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.username, AutofillHints.email],
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Username or Email is required';
+                if (v == null || v.trim().isEmpty) return 'Email is required';
+                final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+                if (!re.hasMatch(v.trim())) return 'Enter a valid email';
                 if (v.trim().length > 50) return 'Max 50 characters';
                 return null;
               },

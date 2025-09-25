@@ -7,7 +7,7 @@ class AuthService {
 
 
   static const String _loginUrl =
-      'xyz';
+      'https://access-asset-management-h9fmcwbhcwf5h5f7.westus3-01.azurewebsites.net/api/Login?code=eG9RoJVXy7FbSFvLZVhcbaWmfPQKdXGFMzrQx-zc7V0ZAzFuKkIggw==';
 
   static Future<({bool ok, String msg})> signup({
     required String username,
@@ -35,27 +35,49 @@ class AuthService {
     }
   }
 
-  static Future<({bool ok, String msg})> login({
-    String? username,
-    String? email,
-    required String password,
-  }) async {
-    try {
-      final r = await http.post(
-        Uri.parse(_loginUrl),
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          if (username != null) 'username': username.trim(),
-          if (email != null) 'email': email?.trim(),
-          'password': password,
-        }),
-      );
-      if (r.statusCode == 200) return (ok: true, msg: 'Login success');
-      if (r.statusCode == 401) return (ok: false, msg: 'Invalid credentials');
-      if (r.statusCode == 400) return (ok: false, msg: r.body.isNotEmpty ? r.body : 'Invalid input');
-      return (ok: false, msg: 'Server error (${r.statusCode})');
-    } catch (e) {
-      return (ok: false, msg: 'Network error: $e');
+static Future<({bool ok, String msg})> login({
+  required String email,
+  required String password,
+}) async {
+  try {
+    final r = await http
+        .post(
+          Uri.parse(_loginUrl),
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
+          },
+          body: jsonEncode({
+            'email': email.trim(),
+            'password': password,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    // Helper to read a nice message from server
+    String _msg([String fallback = '']) {
+      final b = r.body.trim();
+      if (b.isEmpty) return fallback.isEmpty ? 'Server responded ${r.statusCode}' : fallback;
+      try {
+        final v = jsonDecode(b);
+        if (v is Map) {
+          for (final k in ['message', 'error', 'detail', 'msg', 'reason']) {
+            final val = v[k];
+            if (val is String && val.trim().isNotEmpty) return val;
+          }
+        } else if (v is String && v.isNotEmpty) {
+          return v;
+        }
+      } catch (_) {/* not JSON */}
+      return b;
     }
+
+    if (r.statusCode == 200) return (ok: true, msg: _msg('Login success'));
+    if (r.statusCode == 401) return (ok: false, msg: _msg('Invalid credentials'));
+    if (r.statusCode == 400) return (ok: false, msg: _msg('Invalid input'));
+    return (ok: false, msg: _msg('Server error'));
+  } catch (e) {
+    return (ok: false, msg: 'Network error: $e');
+   }
   }
 }
