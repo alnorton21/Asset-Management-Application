@@ -35,7 +35,7 @@ class _MyAppState extends State<MyApp> {
         colorSchemeSeed: Colors.blue,
         brightness: Brightness.dark,
       ),
-       home: LoginPage(
+      home: LoginPage(
         isDark: _mode == ThemeMode.dark,
         onToggleTheme: _toggleTheme,
       ),
