@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "container:../../Development/Asset_Management_App/Asset-Management-Application">
+      location = "container:">
    </FileRef>
 </Workspace>
