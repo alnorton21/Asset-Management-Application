@@ -52,7 +52,7 @@ static Future<({bool ok, String msg})> login({
             'password': password,
           }),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(const Duration(seconds: 60));
 
     // Helper to read a nice message from server
     String _msg([String fallback = '']) {
