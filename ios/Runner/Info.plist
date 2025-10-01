@@ -2,85 +2,88 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <!-- Flutter/iOS basics -->
   <key>CADisableMinimumFrameDurationOnPhone</key>
   <true/>
-
   <key>CFBundleDevelopmentRegion</key>
   <string>$(DEVELOPMENT_LANGUAGE)</string>
-
   <key>CFBundleDisplayName</key>
   <string>Asset Management</string>
-
   <key>CFBundleExecutable</key>
   <string>$(EXECUTABLE_NAME)</string>
-
   <key>CFBundleIdentifier</key>
   <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
-
   <key>CFBundleName</key>
   <string>flutter_app</string>
-
   <key>CFBundlePackageType</key>
   <string>APPL</string>
-
   <key>CFBundleShortVersionString</key>
   <string>$(FLUTTER_BUILD_NAME)</string>
-
   <key>CFBundleSignature</key>
   <string>????</string>
-
   <key>CFBundleVersion</key>
   <string>$(FLUTTER_BUILD_NUMBER)</string>
-
   <key>LSRequiresIPhoneOS</key>
   <true/>
 
-  <!-- Launch screen only (no Main Interface storyboard) -->
+  <!-- Launch screen storyboard used by Flutter -->
   <key>UILaunchStoryboardName</key>
   <string>LaunchScreen</string>
+
+  <!-- Adopt UIScene lifecycle (required for iOS 17/18 stability) -->
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+    <key>UISceneConfigurations</key>
+    <dict>
+      <key>UIWindowSceneSessionRoleApplication</key>
+      <array>
+        <dict>
+          <key>UISceneConfigurationName</key>
+          <string>Default Configuration</string>
+          <key>UISceneDelegateClassName</key>
+          <string>SceneDelegate</string>
+        </dict>
+      </array>
+    </dict>
+  </dict>
 
   <!-- Orientations -->
   <key>UISupportedInterfaceOrientations</key>
   <array>
+    <string>UIInterfaceOrientationPortrait</string>
     <string>UIInterfaceOrientationLandscapeLeft</string>
     <string>UIInterfaceOrientationLandscapeRight</string>
-    <string>UIInterfaceOrientationPortrait</string>
   </array>
 
-  <!-- Input/latency tweaks -->
+  <!-- Text input support -->
   <key>UIApplicationSupportsIndirectInputEvents</key>
   <true/>
 
-  <!-- Permissions -->
+  <!-- Privacy permissions (you already needed these) -->
   <key>NSCameraUsageDescription</key>
   <string>We use the camera to capture a photo for upload.</string>
-
-  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-  <string>We use your location to improve mapping accuracy.</string>
-
-  <key>NSLocationWhenInUseUsageDescription</key>
-  <string>Your location is used to tag assets with latitude and longitude.</string>
-
-  <key>NSPhotoLibraryAddUsageDescription</key>
-  <string>Allow saving captured photos to your library.</string>
-
   <key>NSPhotoLibraryUsageDescription</key>
   <string>Allow selecting a photo from your library.</string>
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>Allow saving captured photos to your library.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Your location is used to tag assets with latitude and longitude.</string>
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>We use your location to improve mapping accuracy.</string>
+  <!-- If you ever record video/audio, also add:
+  <key>NSMicrophoneUsageDescription</key>
+  <string>We use the microphone during video capture.</string>
+  -->
 
-  <!-- ATS (prefer HTTPS in production) -->
+  <!-- Allow non-HTTPS (remove if all endpoints are HTTPS) -->
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsArbitraryLoads</key>
     <true/>
   </dict>
-
-  <!-- Intentionally NOT present:
-       UIMainStoryboardFile
-       NSMainNibFile
-       UIApplicationSceneManifest
-  -->
 </dict>
 </plist>
