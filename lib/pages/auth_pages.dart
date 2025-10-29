@@ -23,6 +23,7 @@ class _AuthShell extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: cs.surfaceContainerLowest,
       appBar: AppBar(
         elevation: 0,
@@ -36,12 +37,40 @@ class _AuthShell extends StatelessWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, c) {
-          final wide = c.maxWidth >= 950;
-          return Row(
-            children: [
-              if (wide)
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final wide = c.maxWidth >= 950;
+
+            // 👇 Added alignment tweak here
+            final formSection = Align(
+              alignment: Alignment.topCenter, // move card higher
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  top: wide ? 60 : 40, // shift up like the earlier layout
+                  left: wide ? 48 : 20,
+                  right: wide ? 48 : 20,
+                  bottom: 24,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: Material(
+                    elevation: 12,
+                    borderRadius: BorderRadius.circular(28),
+                    color: cs.surface,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: child,
+                    ),
+                  ),
+                ),
+              ),
+            );
+
+            if (!wide) return formSection;
+
+            return Row(
+              children: [
                 Expanded(
                   child: Container(
                     height: double.infinity,
@@ -51,7 +80,10 @@ class _AuthShell extends StatelessWidget {
                         end: Alignment.bottomRight,
                         colors: isDark
                             ? [const Color(0xFF0E1B2A), const Color(0xFF132C4A)]
-                            : [const Color(0xFFBFD7FF), const Color(0xFFEEF4FF)],
+                            : [
+                                const Color(0xFFBFD7FF),
+                                const Color(0xFFEEF4FF)
+                              ],
                       ),
                     ),
                     child: Padding(
@@ -68,19 +100,26 @@ class _AuthShell extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 color: cs.onPrimary.withOpacity(0.12),
                               ),
-                              child: Icon(Icons.map_outlined, size: 44, color: cs.onSurface),
+                              child: Icon(Icons.map_outlined,
+                                  size: 44, color: cs.onSurface),
                             ),
                             const SizedBox(height: 24),
                             Text(
                               title,
-                              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displaySmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w700,
                                   ),
                             ),
                             const SizedBox(height: 12),
                             Text(
                               subtitle,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
                                     color: cs.onSurfaceVariant,
                                   ),
                             ),
@@ -90,31 +129,11 @@ class _AuthShell extends StatelessWidget {
                     ),
                   ),
                 ),
-              Expanded(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 460),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: wide ? 48 : 20,
-                        vertical: wide ? 48 : 16,
-                      ),
-                      child: Material(
-                        elevation: 12,
-                        borderRadius: BorderRadius.circular(28),
-                        color: cs.surface,
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: child,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+                Expanded(child: formSection),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -171,7 +190,7 @@ class _LoginPageState extends State<LoginPage> {
     if (!_form.currentState!.validate()) return;
     setState(() => _busy = true);
 
-    final email = _username.text.trim(); // this is now the email field
+    final email = _username.text.trim();
     final res = await AuthService.login(
       email: email,
       password: _password.text,
@@ -180,7 +199,8 @@ class _LoginPageState extends State<LoginPage> {
     if (!mounted) return;
     setState(() => _busy = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res.msg)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(res.msg)));
 
     if (res.ok) {
       Navigator.of(context).pushReplacement(
@@ -193,7 +213,6 @@ class _LoginPageState extends State<LoginPage> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -216,11 +235,14 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 18),
             TextFormField(
-              controller: _username, // reuse; or rename to _email
+              controller: _username,
               decoration: _decor('Email', Icons.email),
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.username, AutofillHints.email],
+              autofillHints: const [
+                AutofillHints.username,
+                AutofillHints.email
+              ],
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Email is required';
                 final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
@@ -249,7 +271,8 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: 10),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(onPressed: () {}, child: const Text('Forgot password?')),
+              child: TextButton(
+                  onPressed: () {}, child: const Text('Forgot password?')),
             ),
             const SizedBox(height: 6),
             SizedBox(
@@ -298,10 +321,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-
-
-
-
 /// ---------- SIGN-UP PAGE ----------
 class SignUpPage extends StatefulWidget {
   const SignUpPage({
@@ -335,35 +354,33 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-   // SIGN UP API CALL
-
   Future<void> _submit() async {
-  if (!_form.currentState!.validate()) return;
-  setState(() => _busy = true);
+    if (!_form.currentState!.validate()) return;
+    setState(() => _busy = true);
 
-  final r = await AuthService.signup(
-    username: _username.text.trim(),
-    email: _email.text.trim(),
-    phone: _phone.text.trim(),
-    password: _password.text,
-  );
-
-  if (!mounted) return;
-  setState(() => _busy = false);
-
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r.msg)));
-
-  if (r.ok) {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => LoginPage(
-          isDark: widget.isDark,
-          onToggleTheme: widget.onToggleTheme,
-        ),
-      ),
+    final r = await AuthService.signup(
+      username: _username.text.trim(),
+      email: _email.text.trim(),
+      phone: _phone.text.trim(),
+      password: _password.text,
     );
+
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r.msg)));
+
+    if (r.ok) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => LoginPage(
+            isDark: widget.isDark,
+            onToggleTheme: widget.onToggleTheme,
+          ),
+        ),
+      );
+    }
   }
-}   
 
   String? _vEmail(String? v) {
     if (v == null || v.trim().isEmpty) return 'Email is required';
@@ -407,7 +424,11 @@ class _SignUpPageState extends State<SignUpPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Sign Up', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text('Sign Up',
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 18),
             TextFormField(
               controller: _username,
@@ -449,10 +470,14 @@ class _SignUpPageState extends State<SignUpPage> {
               child: ElevatedButton(
                 onPressed: _busy ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28)),
                 ),
                 child: _busy
-                    ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                     : const Text('Create Account'),
               ),
             ),

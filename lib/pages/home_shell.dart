@@ -25,7 +25,6 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   int _ticketsBadge = 2;
 
-  // PAGE STACK ORDER: 0 Add, 1 Map, 2 Tickets, 3 Profile
   late final List<Widget> _pages = const [
     LandingPage(),
     MapPage(),
@@ -40,8 +39,6 @@ class _HomeShellState extends State<HomeShell> {
         _ => 'Profile',
       };
 
-  // Bottom bar order is: 0 Profile, 1 Add, 2 Map, 3 Tickets
-  // Map bar index -> page index
   void _onTapNav(int barIndex) {
     const map = [3, 0, 1, 2]; // Profile, Add, Map, Tickets
     setState(() => _index = map[barIndex]);
@@ -55,8 +52,11 @@ class _HomeShellState extends State<HomeShell> {
       key: _scaffoldKey,
       extendBody: true,
       appBar: AppBar(
-        title: Text(_title),
-        // Profile avatar on the LEFT to open the drawer
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(_title, overflow: TextOverflow.ellipsis),
+        ),
         leading: Padding(
           padding: const EdgeInsets.only(left: 8.0),
           child: InkWell(
@@ -72,10 +72,7 @@ class _HomeShellState extends State<HomeShell> {
             ),
           ),
         ),
-        actions: const [],
       ),
-
-      // LEFT slide drawer
       drawer: _AppDrawer(
         isDark: widget.isDark,
         onToggleTheme: widget.onToggleTheme,
@@ -91,65 +88,67 @@ class _HomeShellState extends State<HomeShell> {
             case 'tickets':
               setState(() => _index = 2);
               break;
-            case 'profile': // NEW
+            case 'profile':
               setState(() => _index = 3);
               break;
             case 'settings':
-              // TODO: push settings page if you add one
               break;
           }
         },
       ),
-
-      body: IndexedStack(index: _index, children: _pages),
-
-      // Bottom nav (order: Profile, Add, Map, Tickets)
+      body: SafeArea(
+        child: IndexedStack(index: _index, children: _pages),
+      ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        child: _GlassNavBar(
-          selectedIndex: _selectedBarIndexFromPage(_index),
-          onTap: _onTapNav,
-          items: [
-            _NavItemData(
-              icon: Icons.person_outline,
-              selectedIcon: Icons.person,
-              label: 'Profile',
-            ),
-            _NavItemData(
-              icon: Icons.add_box_outlined,
-              selectedIcon: Icons.add_box,
-              label: 'Add',
-            ),
-            _NavItemData(
-              icon: Icons.map_outlined,
-              selectedIcon: Icons.map,
-              label: 'Map',
-            ),
-            _NavItemData(
-              icon: Icons.confirmation_num_outlined,
-              selectedIcon: Icons.confirmation_num,
-              label: 'Tickets',
-              badgeCount: _ticketsBadge,
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isTight = constraints.maxWidth < 340;
+            return _GlassNavBar(
+              compact: isTight,
+              selectedIndex: _selectedBarIndexFromPage(_index),
+              onTap: _onTapNav,
+              items: [
+                _NavItemData(
+                  icon: Icons.person_outline,
+                  selectedIcon: Icons.person,
+                  label: 'Profile',
+                ),
+                _NavItemData(
+                  icon: Icons.add_box_outlined,
+                  selectedIcon: Icons.add_box,
+                  label: 'Add',
+                ),
+                _NavItemData(
+                  icon: Icons.map_outlined,
+                  selectedIcon: Icons.map,
+                  label: 'Map',
+                ),
+                _NavItemData(
+                  icon: Icons.confirmation_num_outlined,
+                  selectedIcon: Icons.confirmation_num,
+                  label: 'Tickets',
+                  badgeCount: _ticketsBadge,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  // Convert current page index back to the bottom bar index for proper highlighting
   int _selectedBarIndexFromPage(int pageIndex) {
-    // inverse of [3,0,1,2] mapping → page 0(Add)=1, 1(Map)=2, 2(Tickets)=3, 3(Profile)=0
     switch (pageIndex) {
       case 0:
-        return 1; // Add
+        return 1;
       case 1:
-        return 2; // Map
+        return 2;
       case 2:
-        return 3; // Tickets
+        return 3;
       case 3:
       default:
-        return 0; // Profile
+        return 0;
     }
   }
 }
@@ -173,86 +172,91 @@ class _AppDrawer extends StatelessWidget {
 
     return Drawer(
       child: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            UserAccountsDrawerHeader(
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: cs.onPrimaryContainer.withOpacity(0.15),
-                child: const Icon(Icons.person, size: 28),
-              ),
-              accountName: const Text('Norton'),
-              accountEmail: const Text('nortona@rowan.edu'),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [cs.primaryContainer, cs.surfaceVariant],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        child: Scrollbar(
+          thumbVisibility: true,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              UserAccountsDrawerHeader(
+                currentAccountPicture: CircleAvatar(
+                  backgroundColor: cs.onPrimaryContainer.withOpacity(0.15),
+                  child: const Icon(Icons.person, size: 28),
+                ),
+                accountName: const Text('Norton'),
+                accountEmail: const Text('nortona@rowan.edu'),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [cs.primaryContainer, cs.surfaceVariant],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                 ),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              onTap: () => onSelect('profile'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.add_box),
-              title: const Text('Add Asset'),
-              onTap: () => onSelect('add'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.map),
-              title: const Text('Visualize Map'),
-              onTap: () => onSelect('map'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.confirmation_num),
-              title: const Text('Tickets'),
-              onTap: () => onSelect('tickets'),
-            ),
-            const Divider(),
-            SwitchListTile(
-              secondary: Icon(isDark ? Icons.wb_sunny : Icons.dark_mode),
-              title: Text(isDark ? 'Day Mode' : 'Night Mode'),
-              value: isDark,
-              onChanged: (_) => onToggleTheme(),
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
-              onTap: () => onSelect('settings'),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign out'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Still working')),
-                );
-              },
-            ),
-          ],
+              ListTile(
+                leading: const Icon(Icons.person),
+                title: const Text('Profile'),
+                onTap: () => onSelect('profile'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_box),
+                title: const Text('Add Asset'),
+                onTap: () => onSelect('add'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.map),
+                title: const Text('Visualize Map'),
+                onTap: () => onSelect('map'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.confirmation_num),
+                title: const Text('Tickets'),
+                onTap: () => onSelect('tickets'),
+              ),
+              const Divider(),
+              SwitchListTile(
+                secondary: Icon(isDark ? Icons.wb_sunny : Icons.dark_mode),
+                title: Text(isDark ? 'Day Mode' : 'Night Mode'),
+                value: isDark,
+                onChanged: (_) => onToggleTheme(),
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Settings'),
+                onTap: () => onSelect('settings'),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Sign out'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Still working')),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ------------- Pretty glass nav (compact) -------------
+// ------------- Pretty glass nav (compact + overflow safe) -------------
 
 class _GlassNavBar extends StatelessWidget {
   const _GlassNavBar({
     required this.items,
     required this.selectedIndex,
     required this.onTap,
+    this.compact = false,
   });
 
   final List<_NavItemData> items;
   final int selectedIndex;
   final ValueChanged<int> onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +282,7 @@ class _GlassNavBar extends StatelessWidget {
             ],
           ),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(items.length, (i) {
               final item = items[i];
               final selected = i == selectedIndex;
@@ -290,39 +295,52 @@ class _GlassNavBar extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 220),
                       curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 4),
                       decoration: BoxDecoration(
-                        color: selected ? cs.primary.withOpacity(0.14) : Colors.transparent,
+                        color: selected
+                            ? cs.primary.withOpacity(0.14)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Stack(
                         clipBehavior: Clip.none,
                         alignment: Alignment.center,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                selected ? item.selectedIcon : item.icon,
-                                color: selected ? cs.primary : cs.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 6),
-                              AnimatedOpacity(
-                                duration: const Duration(milliseconds: 180),
-                                opacity: selected ? 1 : 0,
-                                child: Text(
-                                  item.label,
-                                  style: TextStyle(
-                                    color: selected ? cs.primary : cs.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  selected ? item.selectedIcon : item.icon,
+                                  color: selected
+                                      ? cs.primary
+                                      : cs.onSurfaceVariant,
+                                  size: compact ? 20 : 24,
                                 ),
-                              ),
-                            ],
+                                if (!compact) const SizedBox(width: 6),
+                                if (!compact)
+                                  AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 180),
+                                    opacity: selected ? 1 : 0,
+                                    child: Text(
+                                      item.label,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: selected
+                                            ? cs.primary
+                                            : cs.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                           if ((item.badgeCount ?? 0) > 0)
                             Positioned(
-                              right: 16,
+                              right: compact ? 8 : 16,
                               top: 2,
                               child: _Badge(count: item.badgeCount!),
                             ),

@@ -1,7 +1,7 @@
 // lib/pages/landing_page.dart
 import 'dart:convert';
-import 'dart:typed_data';
-import 'dart:io' show File; // mobile/desktop only
+import 'dart:io' if (dart.library.html) 'dart:html'
+    as platform_io; // cross-platform import
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +10,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
 import '../services/upload_service.dart';
-import 'map_page.dart';
 
 enum AssetKind { signage, curbs, drainage }
 
@@ -25,19 +24,14 @@ class _LandingPageState extends State<LandingPage> {
   final _picker = ImagePicker();
   final _upload = UploadService();
 
-  // ----- image state (web vs mobile) -----
   Uint8List? _photoBytesWeb;
   String? _webPickedName;
-
-  // Mobile/desktop: the file reference.
   XFile? _photoFile;
 
   bool _busy = false;
-
-  // dropdown
   AssetKind _selected = AssetKind.signage;
 
-  // signage form controllers/fields
+  // signage form controllers
   final _formKeySignage = GlobalKey<FormState>();
   final _createdBy = TextEditingController();
   final _street = TextEditingController();
@@ -64,7 +58,7 @@ class _LandingPageState extends State<LandingPage> {
     super.dispose();
   }
 
-  // -------- helpers to build blob name --------
+  // --------- helpers ---------
   String _cleanExt(String? nameOrPath) {
     if (nameOrPath == null) return '.jpg';
     final n = nameOrPath.toLowerCase();
@@ -75,17 +69,19 @@ class _LandingPageState extends State<LandingPage> {
   String _buildBlobName(double lat, double lon, String ext) {
     final latStr = lat.toStringAsFixed(6);
     final lonStr = lon.toStringAsFixed(6);
-    return '${latStr}_${lonStr}$ext';
+    final ts = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    return '${latStr}_${lonStr}_$ts$ext';
   }
 
-  // ----- image capture (also fetches GPS automatically) -----
+  // ----- image capture (handles web gracefully) -----
   Future<void> _capture() async {
     try {
       final img = await _picker.pickImage(
-        source: ImageSource.camera,
+        source: kIsWeb ? ImageSource.gallery : ImageSource.camera,
         imageQuality: 95,
         preferredCameraDevice: CameraDevice.rear,
       );
+
       if (img == null) return;
 
       if (kIsWeb) {
@@ -103,7 +99,7 @@ class _LandingPageState extends State<LandingPage> {
         });
       }
 
-      // Try to grab location right after capturing
+      // attempt location
       Position? pos;
       try {
         if (await Geolocator.isLocationServiceEnabled()) {
@@ -118,17 +114,18 @@ class _LandingPageState extends State<LandingPage> {
             );
           }
         }
-      } catch (_) {
-        // ignore; we'll show a message below if null
+      } catch (e) {
+        if (kDebugMode) print('Location error: $e');
       }
 
       if (pos != null) {
+        final p = pos;
         setState(() {
-          _lat.text = pos!.latitude.toStringAsFixed(6);
-          _lon.text = pos!.longitude.toStringAsFixed(6);
+          _lat.text = p.latitude.toStringAsFixed(6);
+          _lon.text = p.longitude.toStringAsFixed(6);
         });
       } else {
-        _snack('Couldn’t get location automatically. You can enter it manually.');
+        _snack('Couldn’t get location automatically. Enter it manually.');
       }
     } catch (e) {
       _snack('Camera error: $e');
@@ -137,7 +134,6 @@ class _LandingPageState extends State<LandingPage> {
 
   // ----- submit signage -----
   Future<void> _submitSignage() async {
-    // Validate we have an image first
     if (kIsWeb ? _photoBytesWeb == null : _photoFile == null) {
       _snack('Please capture an image first.');
       return;
@@ -147,7 +143,6 @@ class _LandingPageState extends State<LandingPage> {
 
     setState(() => _busy = true);
     try {
-      // Prepare base64 image and blob_name
       late final Uint8List rawBytes;
       late final String ext;
 
@@ -155,9 +150,10 @@ class _LandingPageState extends State<LandingPage> {
         rawBytes = _photoBytesWeb!;
         ext = _cleanExt(_webPickedName);
       } else {
-        final bytes = await File(_photoFile!.path).readAsBytes();
+        final file = _photoFile!;
+        final bytes = await file.readAsBytes();
         rawBytes = bytes;
-        ext = _cleanExt(_photoFile!.path);
+        ext = _cleanExt(file.path);
       }
 
       final imgBase64 = base64Encode(rawBytes);
@@ -168,7 +164,7 @@ class _LandingPageState extends State<LandingPage> {
 
       final payload = {
         "image": imgBase64,
-        "created_by": _createdBy.text.trim(), // <-- added here
+        "created_by": _createdBy.text.trim(),
         "street": _street.text.trim(),
         "milepost": double.tryParse(_milepost.text.trim()) ?? 0,
         "lat": latVal,
@@ -180,7 +176,6 @@ class _LandingPageState extends State<LandingPage> {
         "illuminated": _illuminated,
         "walkway": _walkway,
         "inventory_date": nowStr,
-        // 👇 ask server to save the blob as lat_lon.ext
         "blob_name": blobName,
       };
 
@@ -195,35 +190,38 @@ class _LandingPageState extends State<LandingPage> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  // -------- UI ---------
   @override
   Widget build(BuildContext context) {
     final imageWidget = Builder(
       builder: (_) {
         if (kIsWeb) {
-          if (_photoBytesWeb == null) {
-            return _emptyImageBox();
-          }
+          if (_photoBytesWeb == null) return _emptyImageBox();
           return ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.memory(_photoBytesWeb!, height: 180, fit: BoxFit.cover),
+            child:
+                Image.memory(_photoBytesWeb!, height: 180, fit: BoxFit.cover),
           );
         } else {
-          if (_photoFile == null) {
-            return _emptyImageBox();
-          }
+          if (_photoFile == null) return _emptyImageBox();
           return ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.file(File(_photoFile!.path), height: 180, fit: BoxFit.cover),
+            child: Image.file(
+              platform_io.File(_photoFile!.path),
+              height: 180,
+              fit: BoxFit.cover,
+            ),
           );
         }
       },
     );
 
     return Scaffold(
-      // appBar: AppBar(title: const Text('Asset Intake')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -241,7 +239,6 @@ class _LandingPageState extends State<LandingPage> {
               ],
             ),
             const SizedBox(height: 16),
-
             DropdownButtonFormField<AssetKind>(
               value: _selected,
               decoration: const InputDecoration(
@@ -249,9 +246,11 @@ class _LandingPageState extends State<LandingPage> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(value: AssetKind.signage, child: Text('Signage')),
+                DropdownMenuItem(
+                    value: AssetKind.signage, child: Text('Signage')),
                 DropdownMenuItem(value: AssetKind.curbs, child: Text('Curbs')),
-                DropdownMenuItem(value: AssetKind.drainage, child: Text('Drainage')),
+                DropdownMenuItem(
+                    value: AssetKind.drainage, child: Text('Drainage')),
               ],
               onChanged: _busy
                   ? null
@@ -260,14 +259,12 @@ class _LandingPageState extends State<LandingPage> {
                     },
             ),
             const SizedBox(height: 16),
-
             if (_selected == AssetKind.signage)
               _signageForm()
             else if (_selected == AssetKind.curbs)
               _placeholderCard('Curbs form – TBD')
             else
               _placeholderCard('Drainage form – TBD'),
-
           ],
         ),
       ),
@@ -297,7 +294,6 @@ class _LandingPageState extends State<LandingPage> {
       key: _formKeySignage,
       child: Column(
         children: [
-          // ---- Created By (optional) ----
           TextFormField(
             controller: _createdBy,
             decoration: const InputDecoration(
@@ -306,7 +302,6 @@ class _LandingPageState extends State<LandingPage> {
             ),
           ),
           const SizedBox(height: 12),
-
           Row(
             children: [
               Expanded(
@@ -346,10 +341,9 @@ class _LandingPageState extends State<LandingPage> {
                     labelText: 'Latitude',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) =>
-                      (double.tryParse((v ?? '').trim()) == null)
-                          ? 'Enter a number'
-                          : null,
+                  validator: (v) => (double.tryParse((v ?? '').trim()) == null)
+                      ? 'Enter a number'
+                      : null,
                 ),
               ),
               const SizedBox(width: 12),
@@ -362,10 +356,9 @@ class _LandingPageState extends State<LandingPage> {
                     labelText: 'Longitude',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) =>
-                      (double.tryParse((v ?? '').trim()) == null)
-                          ? 'Enter a number'
-                          : null,
+                  validator: (v) => (double.tryParse((v ?? '').trim()) == null)
+                      ? 'Enter a number'
+                      : null,
                 ),
               ),
             ],
@@ -385,7 +378,8 @@ class _LandingPageState extends State<LandingPage> {
                     DropdownMenuItem(value: 'Left', child: Text('Left')),
                     DropdownMenuItem(value: 'Center', child: Text('Center')),
                   ],
-                  onChanged: (v) => setState(() => _locationSide = v ?? 'Right'),
+                  onChanged: (v) =>
+                      setState(() => _locationSide = v ?? 'Right'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -398,10 +392,13 @@ class _LandingPageState extends State<LandingPage> {
                     labelText: 'Posts',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) =>
-                      (int.tryParse((v ?? '').trim()) == null)
-                          ? null
-                          : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (int.tryParse(v.trim()) == null) {
+                      return 'Enter a valid integer';
+                    }
+                    return null;
+                  },
                 ),
               ),
             ],
@@ -427,10 +424,9 @@ class _LandingPageState extends State<LandingPage> {
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'Height (inches)',
+                    labelText: 'Height (meters)',
                     border: OutlineInputBorder(),
                   ),
-                  // Optional: allow blank or numeric
                   validator: (v) {
                     final s = (v ?? '').trim();
                     if (s.isEmpty) return null;
@@ -460,7 +456,8 @@ class _LandingPageState extends State<LandingPage> {
               onPressed: _busy ? null : _submitSignage,
               icon: _busy
                   ? const SizedBox(
-                      width: 18, height: 18,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.cloud_upload),
